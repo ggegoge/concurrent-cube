@@ -8,8 +8,6 @@
 // - think about the cubing itself
 // - simplify the mutices!!!
 
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.function.BiConsumer;
 
@@ -20,7 +18,7 @@ public class Cube {
     private final Runnable beforeShowing;
     private final Runnable afterShowing;
 
-    private final String[] faces = new String[6];
+    private final int[][][] faces;
 
     // global variables for all of the threads to synchronise their movements.
 
@@ -108,12 +106,11 @@ public class Cube {
 
     private void rotate(int side, int layer) throws InterruptedException {
         // TODO call to the axis knowing rotate from above
-        // why this? this way we can test for an effect known from astragals ie
-        // all opposing sides summing up to the same number -- 7. Thus I shall index
-        // axes 1-6, 2-5, 3-4 each with the smaller number from the pair of faces.
-        int ax = side + 1;
+
+        // this way we get axis as 0 or 1 or 2
+        int ax = ((side + 2) % 5) % 3;
         int transpLayer = layer;
-        if (ax > 3) {
+        if (side != ax) {
             // reflection
             transpLayer = size - layer + 1;
             ax = 7 - ax;
@@ -157,19 +154,119 @@ public class Cube {
     }
 
     private void criticalRotate(int ax, int layer, int origSide, int origLayer) {
+        // we're here, finally doin some rotating
         beforeRotation.accept(origSide, origLayer);
 
-        // TODO actual rotation bs
+        boolean clockwise = ax == origSide;
+        // if this layer is a face layer then we also need to rotate the face
+        if (layer == 0 || layer == size - 1) {
+            // top face --> 0 || 1 || 2 == ax
+            // bottom face --> origSide == 5 || 3 || 4
+            rotateFace(layer == 0 ? ax : origSide, clockwise);
+        }
+        
+        switch (ax) {
+        case 0 -> rotate0(layer, clockwise);
+        case 1 -> rotate1(layer, clockwise);
+        case 2 -> rotate2(layer, clockwise);
+        default -> throw new AssertionError("sraka");
+        }
 
         afterRotation.accept(origSide, origLayer);
     }
 
+
+    private void rotateFace(int which, boolean clockwise) {
+        if (clockwise) {
+            transpose(faces[which]);
+            reflect(faces[which]);
+        } else {
+            reflect(faces[which]);
+            transpose(faces[which]);
+        }
+    }
+    
+    public void transpose(int[][] matrix) {
+        int n = matrix.length;
+        for (int i = 0; i < n; i++) {
+            for (int j = i; j < n; j++) {
+                int tmp = matrix[j][i];
+                matrix[j][i] = matrix[i][j];
+                matrix[i][j] = tmp;
+            }
+        }
+    }
+    
+    public void reflect(int[][] matrix) {
+        int n = matrix.length;
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n / 2; j++) {
+                int tmp = matrix[i][j];
+                matrix[i][j] = matrix[i][n - j - 1];
+                matrix[i][n - j - 1] = tmp;
+            }
+        }
+    }
+
+    private void swap4(CubeSquare s0, CubeSquare s1,CubeSquare s2,CubeSquare s3,
+                       boolean clockwise) {
+        int[] tmp = {
+            faces[s0.getFace()][s0.getI()][s0.getJ()],
+            faces[s2.getFace()][s2.getI()][s2.getJ()],
+            faces[s1.getFace()][s1.getI()][s1.getJ()],
+            faces[s3.getFace()][s3.getI()][s3.getJ()]
+        };
+
+        if (clockwise) {
+            faces[s0.getFace()][s0.getI()][s0.getJ()] = tmp[3];
+            faces[s2.getFace()][s2.getI()][s2.getJ()] = tmp[0];
+            faces[s1.getFace()][s1.getI()][s1.getJ()] = tmp[1];
+            faces[s3.getFace()][s3.getI()][s3.getJ()] = tmp[2];
+        } else {
+            faces[s0.getFace()][s0.getI()][s0.getJ()] = tmp[1];
+            faces[s2.getFace()][s2.getI()][s2.getJ()] = tmp[2];
+            faces[s1.getFace()][s1.getI()][s1.getJ()] = tmp[3];
+            faces[s3.getFace()][s3.getI()][s3.getJ()] = tmp[0];
+        }                
+    }
+    
+    private void rotate0(int layer, boolean clockwise) {
+        for (int i = 0; i < size; ++i) {
+            swap4(new CubeSquare(1, layer, i), new CubeSquare(2, layer, i),
+                  new CubeSquare(4, layer, i), new CubeSquare(4, layer, i), clockwise);
+        }
+    }
+
+    
+
+    private void rotate1(int layer, boolean clockwise) {
+        for (int i = 0; i < size; ++i) {
+            swap4(new CubeSquare(0, i, layer), new CubeSquare(2, i, layer),
+                  new CubeSquare(5, i, layer),
+                  new CubeSquare(4, size - i - 1, size - layer - 1),
+                  clockwise);
+        }
+    }
+
+    private void rotate2(int layer, boolean clockwise) {
+        for (int i = 0; i < size; ++i) {
+            swap4(new CubeSquare(1, size - i - 1, size - layer - 1),
+                  new CubeSquare(0, size - layer - 1, i),
+                  new CubeSquare(3, i, layer),
+                  new CubeSquare(5, layer, size - i - 1), clockwise);
+        }
+    }
+    
     // TODO - 6 lists of length n^2
     public String criticalShow() throws InterruptedException {
         beforeShowing.run();
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < 6; ++i) {
-            sb.append(faces[i]);
+        for (int f = 0; f < 6; ++f) {
+            for (int i = 0; i < size; ++i) {
+                for (int j = 0; j < size; ++j) {
+                    sb.append(faces[f][i][j]);
+                }
+            }
         }
         afterShowing.run();
         return sb.toString();
@@ -188,6 +285,16 @@ public class Cube {
 
         for (int i = 0; i < size; ++i) {
             layerMutices[i] = new Semaphore(1, true);
+        }
+
+        faces = new int[6][][];        
+        for (int f = 0; f < 6; ++f) {
+            faces[f] = new int[size][size];
+            for (int i = 0; i < size; ++i) {
+                for (int j = 0; j < size; j++) {
+                    faces[f][i][j] = f;
+                }
+            }
         }
     }
 }
