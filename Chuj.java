@@ -95,9 +95,7 @@ public class Chuj {
 
         char current = log.get(0).charAt(1);
         int balance = 0;
-                
-        System.out.println(log);
-
+                        
         for (String state : log) {
             if (state.charAt(1) != current) {
                 if (balance != 0)
@@ -119,8 +117,36 @@ public class Chuj {
 
         if (balance != 0)
             throw new AssertionError("non zero final i-o balance!");
+        else
+            System.out.println("OKAY");
+
+        assertCorrectCube(cube);
     }
 
+    public static void assertCorrectCube(Cube cube) {
+
+        try {
+            String cubeString = cube.show();
+            int expectedAmount = cubeString.length() / 6;
+            int occurences[] = {0, 0, 0, 0, 0, 0};
+            for (int i = 0; i < cubeString.length(); ++i) {
+                System.out.println(cubeString.charAt(i) + " = " + Character.getNumericValue(cubeString.charAt(i)));
+                ++occurences[Character.getNumericValue(cubeString.charAt(i))];
+            }
+
+            for (int i = 0; i < 6; ++i) {
+                if (occurences[i] != expectedAmount) {
+                    throw new AssertionError("there are not enough occurences of colour '"
+                                             + i + "'; " + occurences[i] + ", expected " + expectedAmount);
+                }
+            }
+            
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}        
+    }
+    
     public static void manyThreads() {
         int size = 10;
         Cube cube = new Cube(size,
@@ -156,6 +182,8 @@ public class Chuj {
 		});
         System.out.println("finito");
     }
+
+    
     
     public static void main(String[] args) {
                     

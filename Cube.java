@@ -349,9 +349,9 @@ public class Cube {
                 for (int j = 0; j < size; ++j) {
                     sb.append(faces[f][i][j]);                    
                 }
-                sb.append("\n");
+                // sb.append("\n");
             }
-            sb.append("\n");
+            // sb.append("\n");
         }
         afterShowing.run();
         return sb.toString();
