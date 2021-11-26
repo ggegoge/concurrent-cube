@@ -33,7 +33,7 @@ public class Cube {
     // who has the right to rotate, which axis
     private int currentRotor = -1;
     // last axis that have been used in rotation
-    private int lastAx = -1;
+    private int lastAx = 0;
     // how many rotors rotating right now
     private int rotorsCount = 0;
     // waiting show operations
@@ -114,16 +114,16 @@ public class Cube {
         rotateExitProtocole(ax, layer);
     }
 
-    private void rotate(int side, int layer) throws InterruptedException {
+    public void rotate(int side, int layer) throws InterruptedException {
         // TODO call to the axis knowing rotate from above
 
-        // this way we get axis as 0 or 1 or 2
-        int ax = ((side + 2) % 5) % 3;
+        // this way we get axis as 0 or 1 or 2        
+        // int ax = ((side + 2) % 5) % 3;
+        int ax = side < 3 ? side : oppositeFace(side);
         int transpLayer = layer;
         if (side != ax) {
             // reflection
-            transpLayer = size - layer + 1;
-            ax = 7 - ax;
+            transpLayer = size - layer - 1;
         }
 
         rotate(ax, transpLayer, side, layer);
@@ -164,8 +164,8 @@ public class Cube {
 
     }
     
-    private String show() throws InterruptedException {
-        showEntryProtocole();        
+    public String show() throws InterruptedException {        
+        showEntryProtocole();
         String res = criticalShow();
         showExitProtocole();
         return res;
