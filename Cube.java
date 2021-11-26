@@ -153,6 +153,22 @@ public class Cube {
         }
     }
 
+    private int oppositeFace(int f) {
+        switch (f) {
+            
+        case 0: return 5;
+        case 1: return 3;
+        case 2: return 4;
+        case 3: return 1;
+        case 4: return 2;
+        case 5: return 0;
+
+        default:
+            throw new AssertionError("sraka");
+
+        }
+    }
+    
     private void criticalRotate(int ax, int layer, int origSide, int origLayer) {
         // we're here, finally doin some rotating
         beforeRotation.accept(origSide, origLayer);
@@ -162,7 +178,8 @@ public class Cube {
         if (layer == 0 || layer == size - 1) {
             // top face --> 0 || 1 || 2 == ax
             // bottom face --> origSide == 5 || 3 || 4
-            rotateFace(layer == 0 ? ax : origSide, clockwise);
+            // clockwise negated due to sraka
+            rotateFace(layer == 0 ? ax : oppositeFace(ax), !clockwise);
         }
         
         switch (ax) {
