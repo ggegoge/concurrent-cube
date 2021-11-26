@@ -65,7 +65,6 @@ public class Cube {
             try {
                 axisMutices[ax].acquire();
             } catch (InterruptedException e) {
-                System.out.println(Thread.currentThread().getName() + " rotate: interrupting myself on axis mutex");
                 mutex.acquireUninterruptibly();
                 --waiting[ax];
                 mutex.release();
@@ -86,7 +85,6 @@ public class Cube {
         try {
             layerMutices[layer].acquire();
         } catch (InterruptedException e) {
-            System.out.println(Thread.currentThread().getName() + " rotate: interrupting myself on layer mutex");
             mutex.acquireUninterruptibly();
             --rotorsCount;
             // we might have been the last of our group
@@ -104,7 +102,8 @@ public class Cube {
             currentRotor = 4;
             showing.release();
         } else if (rotorsCount == 0) {
-            for (int i = (ax + 1) % 3; i != ax; i = (i + 1) % 3) {
+            for (int j = 1; j <= 3; ++j) {
+                int i = (ax + j) % 3;
                 if (waiting[i] > 0) {
                     currentRotor = i;
                     axisMutices[i].release();
@@ -154,7 +153,6 @@ public class Cube {
             try {
                 showing.acquire();
             } catch (InterruptedException e) {
-                System.out.println(Thread.currentThread().getName() + " show: interrupting myself on showing mutex");
                 mutex.acquireUninterruptibly();
                 --waitingShows;
                 mutex.release();
@@ -163,7 +161,7 @@ public class Cube {
             --waitingShows;
             // ?
         } else {
-            currentRotor = 4;            
+            currentRotor = 4;
         }
         mutex.release();
     }
@@ -171,7 +169,8 @@ public class Cube {
     private void showExitProtocole() throws InterruptedException {
         mutex.acquireUninterruptibly();
         
-        for (int i = (lastAx + 1) % 3; i != lastAx; i = (i + 1) % 3) {
+        for (int j = 1; j <= 3; ++j) {
+            int i = (lastAx + j) % 3;
             if (waiting[i] > 0) {
                 currentRotor = i;
                 axisMutices[i].release();

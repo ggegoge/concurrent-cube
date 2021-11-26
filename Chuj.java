@@ -60,7 +60,7 @@ public class Chuj {
 
     public static void loggingTest() {
         int size = 10;
-        int NR_THREADS = 100;
+        int NR_THREADS = 1000;
         List<String> log = Collections.synchronizedList(new ArrayList<>());
 
         Cube cube = new Cube(size, (x, y) -> {
@@ -135,7 +135,7 @@ public class Chuj {
             String cubeString = cube.show();
             int expectedAmount = cubeString.length() / 6;
             int occurences[] = { 0, 0, 0, 0, 0, 0 };
-            for (int i = 0; i < cubeString.length(); ++i) {                
+            for (int i = 0; i < cubeString.length(); ++i) {
                 ++occurences[Character.getNumericValue(cubeString.charAt(i))];
             }
 
@@ -194,16 +194,20 @@ public class Chuj {
     public static void interruptionsTest() {
         int size = 10;
         int NR_THREADS = 100;
-        
+
         Cube cube = new Cube(size, (x, y) -> {
             try {
-                Thread.sleep(1000);
-            } catch (InterruptedException ingored) { }
+                Thread.sleep(100);
+            } catch (InterruptedException ingored) {
+            }
         }, (x, y) -> {
+        }, () -> {
             try {
-                Thread.sleep(1000);
-            } catch (InterruptedException ingored) { }
-        }, () -> { }, () -> { });
+                Thread.sleep(100);
+            } catch (InterruptedException ingored) {
+            }
+        }, () -> {
+        });
 
         List<Thread> threads = new ArrayList<>();
         for (int i = 0; i < NR_THREADS; ++i) {
@@ -215,20 +219,22 @@ public class Chuj {
                         cube.rotate(ThreadLocalRandom.current().nextInt(0, 2137) % 6,
                                 ThreadLocalRandom.current().nextInt(0, 2137) % size);
                     }
-                } catch (InterruptedException interrupted) { }
+                } catch (InterruptedException interrupted) {
+                }
             }));
         }
         threads.forEach(Thread::start);
 
         Random r = new Random();
-        for (int i = 0; i < threads.size(); i += r.nextInt(7)) {
+        for (int i = 0; i < threads.size(); i += r.nextInt(10) + 1) {
             threads.get(i).interrupt();
         }
         threads.forEach(arg0 -> {
-			try {
-				arg0.join();
-			} catch (InterruptedException e) { }
-		});
+            try {
+                arg0.join();
+            } catch (InterruptedException e) {
+            }
+        });
 
         assertCorrectCube(cube);
     }
@@ -239,7 +245,7 @@ public class Chuj {
         // manyThreads();
         // loggingTest();
         interruptionsTest();
-        
+
         // ExecutorService executor = Executors.newFixedThreadPool(10);
         // Future<Object> guwno = executor.submit(() -> cube.rotate(4, 0));
         // guwno.get();
