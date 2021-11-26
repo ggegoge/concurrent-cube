@@ -80,7 +80,6 @@ public class Cube {
 
     private void rotateExitProtocole(int ax, int layer) throws InterruptedException {
         layerMutices[layer].release();
-
         mutex.acquire();
         --rotorsCount;
         if (rotorsCount == 0 && waitingShows > 0) {
@@ -108,17 +107,13 @@ public class Cube {
     
     private void rotate(int ax, int layer, int origSide, int origLayer)
         throws InterruptedException {
-
         rotateEntryProtocole(ax, layer);
         criticalRotate(ax, layer, origSide, origLayer);
         rotateExitProtocole(ax, layer);
     }
 
     public void rotate(int side, int layer) throws InterruptedException {
-        // TODO call to the axis knowing rotate from above
-
         // this way we get axis as 0 or 1 or 2        
-        // int ax = ((side + 2) % 5) % 3;
         int ax = side < 3 ? side : oppositeFace(side);
         int transpLayer = layer;
         if (side != ax) {
@@ -130,21 +125,28 @@ public class Cube {
     }
 
     private void showEntryProtocole() throws InterruptedException {
+        System.out.println("show entry");
         mutex.acquire();
+        System.out.println("mutex acquired");
         if (otherAxWaiting(4) || currentRotor != -1) {
+            System.out.println("other waiting!");
             ++waitingShows;
             mutex.release();
             showing.acquire();
             --waitingShows;
             // ?
         } else {
+            System.out.println("we can show!");
             currentRotor = 4;
             mutex.release();
         }
     }
 
     private void showExitProtocole() throws InterruptedException {
+        System.out.println("exiting showing");
         mutex.acquire();
+        System.out.println("mutex acquired");
+        
         for (int i = (lastAx + 1) % 3; i != lastAx; i = (i + 1) % 3) {
             if (waiting[i] > 0) {
                 currentRotor = i;
@@ -166,9 +168,9 @@ public class Cube {
     
     public String show() throws InterruptedException {        
         showEntryProtocole();
-        String res = criticalShow();
+        String cubeString = criticalShow();
         showExitProtocole();
-        return res;
+        return cubeString;
     }
 
     private int oppositeFace(int f) {
@@ -185,16 +187,19 @@ public class Cube {
     }
     
     private void criticalRotate(int ax, int layer, int origSide, int origLayer) {
+        System.out.println("critical rotate ax = " + ax + " origSide = " + origSide);
         // We're here, finally doin some rotating.
         beforeRotation.accept(origSide, origLayer);
 
         boolean clockwise = ax == origSide;
         // If this layer is a face layer then we also need to rotate the face.
-        if (layer == 0 || layer == size - 1) {
+        if (layer == 0) {
             // top face --> 0 || 1 || 2 == ax
             // bottom face --> origSide == 5 || 3 || 4
             // clockwise negated due to sraka
-            rotateFace(layer == 0 ? ax : oppositeFace(ax), !clockwise);
+            rotateFace(ax, clockwise);
+        } else if (layer == size - 1) {
+            rotateFace(oppositeFace(ax), !clockwise);
         }
         
         switch (ax) {
@@ -245,32 +250,45 @@ public class Cube {
         }
     }
 
+    private void swapFaces(CubeSquare a, CubeSquare b, CubeSquare c, CubeSquare d, boolean clockwise) {
+        for (int i = clockwise ? 1 : 3; i > 0; i--) {
+            int tmp = faces[a.getFace()][a.getI()][a.getJ()];
+
+        faces[a.getFace()][a.getI()][a.getJ()] = faces[b.getFace()][b.getI()][b.getJ()];
+        faces[b.getFace()][b.getI()][b.getJ()] = faces[c.getFace()][c.getI()][c.getJ()];
+        faces[c.getFace()][c.getI()][c.getJ()] = faces[d.getFace()][d.getI()][d.getJ()];
+        faces[d.getFace()][d.getI()][d.getJ()] = tmp;
+    }
+}
+
+    
     private void swap4(CubeSquare s0, CubeSquare s1,CubeSquare s2,CubeSquare s3,
                        boolean clockwise) {
         int[] tmp = {
             faces[s0.getFace()][s0.getI()][s0.getJ()],
-            faces[s2.getFace()][s2.getI()][s2.getJ()],
             faces[s1.getFace()][s1.getI()][s1.getJ()],
+            faces[s2.getFace()][s2.getI()][s2.getJ()],
             faces[s3.getFace()][s3.getI()][s3.getJ()]
         };
 
         if (clockwise) {
-            faces[s0.getFace()][s0.getI()][s0.getJ()] = tmp[3];
-            faces[s2.getFace()][s2.getI()][s2.getJ()] = tmp[0];
-            faces[s1.getFace()][s1.getI()][s1.getJ()] = tmp[1];
-            faces[s3.getFace()][s3.getI()][s3.getJ()] = tmp[2];
-        } else {
             faces[s0.getFace()][s0.getI()][s0.getJ()] = tmp[1];
-            faces[s2.getFace()][s2.getI()][s2.getJ()] = tmp[2];
-            faces[s1.getFace()][s1.getI()][s1.getJ()] = tmp[3];
+            faces[s1.getFace()][s1.getI()][s1.getJ()] = tmp[2];
+            faces[s2.getFace()][s2.getI()][s2.getJ()] = tmp[3];
             faces[s3.getFace()][s3.getI()][s3.getJ()] = tmp[0];
+        } else {
+            faces[s0.getFace()][s0.getI()][s0.getJ()] = tmp[3];
+            faces[s1.getFace()][s1.getI()][s1.getJ()] = tmp[0];
+            faces[s2.getFace()][s2.getI()][s2.getJ()] = tmp[1];
+            faces[s3.getFace()][s3.getI()][s3.getJ()] = tmp[2];
         }                
     }
     
     private void rotate0(int layer, boolean clockwise) {
+        
         for (int i = 0; i < size; ++i) {
             swap4(new CubeSquare(1, layer, i), new CubeSquare(2, layer, i),
-                  new CubeSquare(4, layer, i), new CubeSquare(4, layer, i), clockwise);
+                  new CubeSquare(3, layer, i), new CubeSquare(4, layer, i), clockwise);
         }
     }
 
@@ -278,32 +296,36 @@ public class Cube {
 
     private void rotate1(int layer, boolean clockwise) {
         for (int i = 0; i < size; ++i) {
-            swap4(new CubeSquare(0, i, layer), new CubeSquare(2, i, layer),
+            swap4(new CubeSquare(4, size - i - 1, size - layer - 1),
                   new CubeSquare(5, i, layer),
-                  new CubeSquare(4, size - i - 1, size - layer - 1),
+                  new CubeSquare(2, i, layer),
+                  new CubeSquare(0, i, layer), 
                   clockwise);
         }
     }
 
     private void rotate2(int layer, boolean clockwise) {
         for (int i = 0; i < size; ++i) {
-            swap4(new CubeSquare(1, size - i - 1, size - layer - 1),
-                  new CubeSquare(0, size - layer - 1, i),
+            swap4(new CubeSquare(0, size - layer - 1, i),
+                  new CubeSquare(1, size - i - 1, size - layer - 1),
+                  new CubeSquare(5, layer, size - i - 1), 
                   new CubeSquare(3, i, layer),
-                  new CubeSquare(5, layer, size - i - 1), clockwise);
+                  clockwise);
         }
     }
-    
-    // TODO - 6 lists of length n^2
+        
     public String criticalShow() throws InterruptedException {
+        System.out.println("critical show");
         beforeShowing.run();
         StringBuilder sb = new StringBuilder();
         for (int f = 0; f < 6; ++f) {
             for (int i = 0; i < size; ++i) {
                 for (int j = 0; j < size; ++j) {
-                    sb.append(faces[f][i][j]);
+                    sb.append(faces[f][i][j]);                    
                 }
+                sb.append("\n");
             }
+            sb.append("\n");
         }
         afterShowing.run();
         return sb.toString();
