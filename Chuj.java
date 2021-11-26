@@ -221,7 +221,7 @@ public class Chuj {
         threads.forEach(Thread::start);
 
         Random r = new Random();
-        for (int i = 0; i < threads.size(); i += r.nextInt(0, 7)) {
+        for (int i = 0; i < threads.size(); i += r.nextInt(7)) {
             threads.get(i).interrupt();
         }
         threads.forEach(arg0 -> {
