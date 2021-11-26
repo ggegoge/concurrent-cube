@@ -20,7 +20,7 @@ public class Cube {
 
     private final int[][][] faces;
 
-    // global variables for all of the threads to synchronise their movements.
+    // Global variables for all of the threads to synchronise their movements.
 
     // a straight forward mutex for protecting synch variables
     private final Semaphore mutex = new Semaphore(1, true);
@@ -52,7 +52,7 @@ public class Cube {
         }
     }
 
-    private void rotate(int ax, int layer, int origSide, int origLayer) throws InterruptedException {
+    private void rotateEntryProtocole(int ax, int layer) throws InterruptedException {
         mutex.acquire();
 
         if (currentRotor == -1) {
@@ -76,7 +76,9 @@ public class Cube {
         }
 
         layerMutices[layer].acquire();
-        criticalRotate(ax, layer, origSide, origLayer);
+    }
+
+    private void rotateExitProtocole(int ax, int layer) throws InterruptedException {
         layerMutices[layer].release();
 
         mutex.acquire();
@@ -103,6 +105,14 @@ public class Cube {
             mutex.release();
         }
     }
+    
+    private void rotate(int ax, int layer, int origSide, int origLayer)
+        throws InterruptedException {
+
+        rotateEntryProtocole(ax, layer);
+        criticalRotate(ax, layer, origSide, origLayer);
+        rotateExitProtocole(ax, layer);
+    }
 
     private void rotate(int side, int layer) throws InterruptedException {
         // TODO call to the axis knowing rotate from above
@@ -119,7 +129,7 @@ public class Cube {
         rotate(ax, transpLayer, side, layer);
     }
 
-    private String show() throws InterruptedException {
+    private void showEntryProtocole() throws InterruptedException {
         mutex.acquire();
         if (otherAxWaiting(4) || currentRotor != -1) {
             ++waitingShows;
@@ -131,26 +141,34 @@ public class Cube {
             currentRotor = 4;
             mutex.release();
         }
+    }
 
-        String res = criticalShow();
-
+    private void showExitProtocole() throws InterruptedException {
         mutex.acquire();
         for (int i = (lastAx + 1) % 3; i != lastAx; i = (i + 1) % 3) {
             if (waiting[i] > 0) {
                 currentRotor = i;
                 axisMutices[i].release();
                 // I don't release the mutex as it will be inherited
-                return res;
+                return;
             }
         }
         if (waitingShows > 0) {
             showing.release();
-            return res;
+            return;
         } else {
             currentRotor = -1;
             mutex.release();
-            return res;
+            return;
         }
+
+    }
+    
+    private String show() throws InterruptedException {
+        showEntryProtocole();        
+        String res = criticalShow();
+        showExitProtocole();
+        return res;
     }
 
     private int oppositeFace(int f) {
@@ -162,19 +180,16 @@ public class Cube {
         case 3: return 1;
         case 4: return 2;
         case 5: return 0;
-
-        default:
-            throw new AssertionError("sraka");
-
+        default: throw new AssertionError("sraka");
         }
     }
     
     private void criticalRotate(int ax, int layer, int origSide, int origLayer) {
-        // we're here, finally doin some rotating
+        // We're here, finally doin some rotating.
         beforeRotation.accept(origSide, origLayer);
 
         boolean clockwise = ax == origSide;
-        // if this layer is a face layer then we also need to rotate the face
+        // If this layer is a face layer then we also need to rotate the face.
         if (layer == 0 || layer == size - 1) {
             // top face --> 0 || 1 || 2 == ax
             // bottom face --> origSide == 5 || 3 || 4
@@ -183,10 +198,15 @@ public class Cube {
         }
         
         switch (ax) {
-        case 0 -> rotate0(layer, clockwise);
-        case 1 -> rotate1(layer, clockwise);
-        case 2 -> rotate2(layer, clockwise);
-        default -> throw new AssertionError("sraka");
+        case 0:
+            rotate0(layer, clockwise);
+            break;
+        case 1:
+            rotate1(layer, clockwise);
+            break;
+        case 2:
+            rotate2(layer, clockwise);
+            break;
         }
 
         afterRotation.accept(origSide, origLayer);
