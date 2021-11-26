@@ -62,7 +62,14 @@ public class Cube {
         if (currentRotor != ax || otherAxWaiting(ax) || waitingShows > 0) {
             ++waiting[ax];
             mutex.release();
-            axisMutices[ax].acquire();
+            try {
+                axisMutices[ax].acquire();
+            } catch (InterruptedException e) {
+                mutex.acquireUninterruptibly();
+                --waiting[ax];
+                mutex.release();
+                throw e;
+            }
             // we inherit the mutex here
             --waiting[ax];
         }
@@ -75,13 +82,19 @@ public class Cube {
             mutex.release();
         }
 
-        layerMutices[layer].acquire();
+        try {
+            layerMutices[layer].acquire();
+        } catch (InterruptedException e) {
+            mutex.acquireUninterruptibly();
+            --rotorsCount;
+            // we might have been the last of our group
+            rotateLetOthersIn(ax, layer);
+            throw e;
+        }
     }
 
-    private void rotateExitProtocole(int ax, int layer) throws InterruptedException {
-        layerMutices[layer].release();
-        mutex.acquire();
-        --rotorsCount;
+
+    private void rotateLetOthersIn(int ax, int layer) {
         if (rotorsCount == 0 && waitingShows > 0) {
             lastAx = ax;
             // note: there is no such axis, it is an indicator that we let
@@ -103,6 +116,13 @@ public class Cube {
             // we're not the last thread from our group so we just fuck off
             mutex.release();
         }
+    }
+    
+    private void rotateExitProtocole(int ax, int layer) throws InterruptedException {
+        layerMutices[layer].release();
+        mutex.acquireUninterruptibly();
+        --rotorsCount;
+        rotateLetOthersIn(ax, layer);
     }
     
     private void rotate(int ax, int layer, int origSide, int origLayer)
@@ -132,7 +152,14 @@ public class Cube {
             System.out.println(Thread.currentThread().getName() + " show: other waiting, wypierdalam!");
             ++waitingShows;
             mutex.release();
-            showing.acquire();
+            try {
+                showing.acquire();
+            } catch (InterruptedException e) {
+                mutex.acquireUninterruptibly();
+                --waitingShows;
+                mutex.release();
+                throw e;
+            }
             System.out.println(Thread.currentThread().getName() + " show wake up");
             --waitingShows;
             // ?
@@ -145,7 +172,7 @@ public class Cube {
 
     private void showExitProtocole() throws InterruptedException {
         System.out.println(Thread.currentThread().getName() + " show exiting showing");
-        mutex.acquire();
+        mutex.acquireUninterruptibly();
         System.out.println(Thread.currentThread().getName() + "mutex acquired, lastAx = " + lastAx);
         
         for (int i = (lastAx + 1) % 3; i != lastAx; i = (i + 1) % 3) {
