@@ -65,6 +65,7 @@ public class Cube {
             try {
                 axisMutices[ax].acquire();
             } catch (InterruptedException e) {
+                System.out.println(Thread.currentThread().getName() + " rotate: interrupting myself on axis mutex");
                 mutex.acquireUninterruptibly();
                 --waiting[ax];
                 mutex.release();
@@ -85,6 +86,7 @@ public class Cube {
         try {
             layerMutices[layer].acquire();
         } catch (InterruptedException e) {
+            System.out.println(Thread.currentThread().getName() + " rotate: interrupting myself on layer mutex");
             mutex.acquireUninterruptibly();
             --rotorsCount;
             // we might have been the last of our group
@@ -145,35 +147,29 @@ public class Cube {
     }
 
     private void showEntryProtocole() throws InterruptedException {
-        System.out.println(Thread.currentThread().getName() + " show entry");
         mutex.acquire();
-        System.out.println(Thread.currentThread().getName() + " show: mutex acquired");
         if (otherAxWaiting(4) || currentRotor != -1) {
-            System.out.println(Thread.currentThread().getName() + " show: other waiting, wypierdalam!");
             ++waitingShows;
             mutex.release();
             try {
                 showing.acquire();
             } catch (InterruptedException e) {
+                System.out.println(Thread.currentThread().getName() + " show: interrupting myself on showing mutex");
                 mutex.acquireUninterruptibly();
                 --waitingShows;
                 mutex.release();
                 throw e;
             }
-            System.out.println(Thread.currentThread().getName() + " show wake up");
             --waitingShows;
             // ?
         } else {
-            System.out.println("show: we can show!");
             currentRotor = 4;            
         }
         mutex.release();
     }
 
     private void showExitProtocole() throws InterruptedException {
-        System.out.println(Thread.currentThread().getName() + " show exiting showing");
         mutex.acquireUninterruptibly();
-        System.out.println(Thread.currentThread().getName() + "mutex acquired, lastAx = " + lastAx);
         
         for (int i = (lastAx + 1) % 3; i != lastAx; i = (i + 1) % 3) {
             if (waiting[i] > 0) {
@@ -213,7 +209,6 @@ public class Cube {
     }
     
     private void criticalRotate(int ax, int layer, int origSide, int origLayer) {
-        System.out.println("critical rotate ax = " + ax + ", layer = " + layer);
         // We're here, finally doin some rotating.
         beforeRotation.accept(origSide, origLayer);
 
@@ -341,7 +336,6 @@ public class Cube {
     }
         
     public String criticalShow() throws InterruptedException {
-        System.out.println(Thread.currentThread().getName() + " critical show");
         beforeShowing.run();
         StringBuilder sb = new StringBuilder();
         for (int f = 0; f < 6; ++f) {
@@ -349,9 +343,7 @@ public class Cube {
                 for (int j = 0; j < size; ++j) {
                     sb.append(faces[f][i][j]);                    
                 }
-                // sb.append("\n");
             }
-            // sb.append("\n");
         }
         afterShowing.run();
         return sb.toString();
