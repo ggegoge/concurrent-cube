@@ -10,7 +10,11 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.*;
 
-public class CubeTest {
+
+// This is a jUnit test class for the implementation of a concurrent Rubik's
+// cube. It tests its various qualites such as rotation correctness, their
+// atomicity or lack thereof, synchronisation, concurrency and liveness.
+public class CubeTest {    
     @Test
     public void git() {
         
@@ -160,20 +164,18 @@ public class CubeTest {
                         cube.rotate(ThreadLocalRandom.current().nextInt(0, 2137) % 6,
                                 ThreadLocalRandom.current().nextInt(0, 2137) % size);
                     }
-                } catch (InterruptedException e) {
-                    // TODO
-                    e.printStackTrace();
-                }
+                } catch (InterruptedException e) { }
             }));
         }
         threads.forEach(Thread::start);
 
-        threads.forEach(arg0 -> {
+        threads.forEach(t -> {
             try {
-                arg0.join();
+                t.join(1000);
+                if (t.isAlive()) {
+                    throw new AssertionError("Threads haven't finished in time!");
+                }
             } catch (InterruptedException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
             }
         });
 
@@ -233,18 +235,17 @@ public class CubeTest {
                         cube.rotate(ThreadLocalRandom.current().nextInt(0, 2137) % 6,
                                 ThreadLocalRandom.current().nextInt(0, 2137) % size);
                     }
-                } catch (InterruptedException e) {
-                    // TODO
-                    e.printStackTrace();
-                }
+                } catch (InterruptedException e) { }
             }));
         }
         threads.forEach(Thread::start);
-        threads.forEach(arg0 -> {
+        threads.forEach(t -> {
             try {
-                arg0.join();
+                t.join(1000);
+                if (t.isAlive()) {
+                    throw new AssertionError("Threads haven't finished in time!");
+                }
             } catch (InterruptedException e) {
-                System.err.println("INTERRUPTED!!!!!");
             }
         });
 
@@ -287,9 +288,12 @@ public class CubeTest {
             }));
         }
         threads.forEach(Thread::start);
-        threads.forEach(arg0 -> {
+        threads.forEach(t -> {
             try {
-                arg0.join();
+                t.join(1000);
+                if (t.isAlive()) {
+                    throw new AssertionError("Threads haven't finished in time!");
+                }
             } catch (InterruptedException e) {
             }
         });
@@ -340,10 +344,10 @@ public class CubeTest {
         for (int i = 0; i < threads.size(); i += r.nextInt(10) + 1) {
             threads.get(i).interrupt();
         }
-        threads.forEach(arg0 -> {
+        threads.forEach(t -> {
             try {
-                arg0.join(1000);
-                if (arg0.isAlive()) {
+                t.join(1000);
+                if (t.isAlive()) {
                     throw new AssertionError("Threads haven't finished in time!");
                 }
             } catch (InterruptedException e) {
