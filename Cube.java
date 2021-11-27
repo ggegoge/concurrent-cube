@@ -24,7 +24,7 @@ public class Cube {
 
     // Straight forward mutex for protecting sync variables.
     private final Semaphore mutex = new Semaphore(1, true);
-    
+
     // Semaphores for different axis groups to wait on.
     private final Semaphore[] axisMutices = { new Semaphore(0, true),
         new Semaphore(0, true), new Semaphore(0, true) };
@@ -159,7 +159,7 @@ public class Cube {
     // User visible rotate function. Will perform a clockwise rotation of
     // a selected layer facing a given side.
     public void rotate(int side, int layer) throws InterruptedException {
-        // this way we get axis as 0 or 1 or 2        
+        // this way we get axis as 0 or 1 or 2
         int ax = side < 3 ? side : oppositeFace(side);
         int transpLayer = layer;
         if (side != ax) {
@@ -216,7 +216,7 @@ public class Cube {
     }
 
     // Return a string with a representation of the cube.
-    public String show() throws InterruptedException {        
+    public String show() throws InterruptedException {
         showEntryProtocole();
         String cubeString = criticalShow();
         showExitProtocole();
@@ -232,6 +232,7 @@ public class Cube {
         case 3: return 1;
         case 4: return 2;
         case 5: return 0;
+
         default: throw new AssertionError("Invalid face!");
         }
     }
@@ -253,6 +254,7 @@ public class Cube {
         }
         
         switch (ax) {
+
         case 0:
             rotate0(layer, clockwise);
             break;
@@ -267,7 +269,6 @@ public class Cube {
         afterRotation.accept(origSide, origLayer);
     }
 
-
     private void rotateFace(int which, boolean clockwise) {
         if (clockwise) {
             transpose(faces[which]);
@@ -277,7 +278,7 @@ public class Cube {
             transpose(faces[which]);
         }
     }
-    
+
     public void transpose(int[][] matrix) {
         int n = matrix.length;
         for (int i = 0; i < n; i++) {
@@ -288,7 +289,7 @@ public class Cube {
             }
         }
     }
-    
+
     public void reflect(int[][] matrix) {
         int n = matrix.length;
         for (int i = 0; i < n; i++) {
@@ -320,20 +321,19 @@ public class Cube {
             faces[s1.getFace()][s1.getI()][s1.getJ()] = tmp[0];
             faces[s2.getFace()][s2.getI()][s2.getJ()] = tmp[1];
             faces[s3.getFace()][s3.getI()][s3.getJ()] = tmp[2];
-        }                
+        }
     }
 
     // All functions from the rotateN (N in {0,1,2}) family rotate a given layer
     // around the Nth axis. Clockwise or anticlockwise.
     private void rotate0(int layer, boolean clockwise) {
-        
+
         for (int i = 0; i < size; ++i) {
             swap4(new CubeSquare(1, layer, i), new CubeSquare(2, layer, i),
-                  new CubeSquare(3, layer, i), new CubeSquare(4, layer, i), clockwise);
+                  new CubeSquare(3, layer, i), new CubeSquare(4, layer, i),
+                  clockwise);
         }
     }
-
-    
 
     private void rotate1(int layer, boolean clockwise) {
         for (int i = 0; i < size; ++i) {
@@ -360,7 +360,7 @@ public class Cube {
         for (int f = 0; f < 6; ++f) {
             for (int i = 0; i < size; ++i) {
                 for (int j = 0; j < size; ++j) {
-                    sb.append(faces[f][i][j]);                    
+                    sb.append(faces[f][i][j]);
                 }
             }
         }
@@ -384,7 +384,7 @@ public class Cube {
             layerMutices[i] = new Semaphore(1, true);
         }
 
-        faces = new int[6][][];        
+        faces = new int[6][][];
         for (int f = 0; f < 6; ++f) {
             faces[f] = new int[size][size];
             for (int i = 0; i < size; ++i) {
