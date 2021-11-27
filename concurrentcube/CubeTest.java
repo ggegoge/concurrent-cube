@@ -10,11 +10,10 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.*;
 
-
 // This is a jUnit test class for the implementation of a concurrent Rubik's
 // cube. It tests its various qualites such as rotation correctness, their
 // atomicity or lack thereof, synchronisation, concurrency and liveness.
-public class CubeTest {    
+public class CubeTest {
     // A utility function for assering whether a cube is physically correct
     // ie. the number of squares with each of the six `colours' is equal.
     private static void assertCorrectCube(Cube cube) {
@@ -115,6 +114,27 @@ public class CubeTest {
         }
     }
 
+    // Generate a list of threads (without starting them) that perform random
+    // operations on a cube. Both rotations and shows are inlcuded in the list
+    // with a given probavility;
+    private List<Thread> aleatoryRotorsShowers(int nrThreads, double showProbability,
+                                        Cube cube, int size) {
+        List<Thread> threads = new ArrayList<>();
+        for (int i = 0; i < nrThreads; ++i) {
+            threads.add(new Thread(() -> {
+                try {
+                    if (ThreadLocalRandom.current().nextDouble() < showProbability) {
+                        cube.show();
+                    } else {
+                        cube.rotate(ThreadLocalRandom.current().nextInt(0, 2137) % 6,
+                                ThreadLocalRandom.current().nextInt(0, 2137) % size);
+                    }
+                } catch (InterruptedException e) {
+                }
+            }));
+        }
+        return threads;
+    }
 
     // This test aims to test whether the synchronisation of cube operations
     // is correct ie. only non-colliding operations are inside of the critical
@@ -144,19 +164,7 @@ public class CubeTest {
             log.add("oS");
         });
 
-        List<Thread> threads = new ArrayList<>();
-        for (int i = 0; i < NR_THREADS; ++i) {
-            threads.add(new Thread(() -> {
-                try {
-                    if (ThreadLocalRandom.current().nextDouble() < 0.3) {
-                        cube.show();
-                    } else {
-                        cube.rotate(ThreadLocalRandom.current().nextInt(0, 2137) % 6,
-                                ThreadLocalRandom.current().nextInt(0, 2137) % size);
-                    }
-                } catch (InterruptedException e) { }
-            }));
-        }
+        List<Thread> threads = aleatoryRotorsShowers(NR_THREADS, 0.3, cube, size);
         threads.forEach(Thread::start);
 
         threads.forEach(t -> {
@@ -216,19 +224,8 @@ public class CubeTest {
         }, () -> {
         });
 
-        ArrayList<Thread> threads = new ArrayList<>();
-        for (int i = 0; i < NR_THREADS; ++i) {
-            threads.add(new Thread(() -> {
-                try {
-                    if (ThreadLocalRandom.current().nextDouble() < 0.3) {
-                        cube.show();
-                    } else {
-                        cube.rotate(ThreadLocalRandom.current().nextInt(0, 2137) % 6,
-                                ThreadLocalRandom.current().nextInt(0, 2137) % size);
-                    }
-                } catch (InterruptedException e) { }
-            }));
-        }
+        List<Thread> threads = aleatoryRotorsShowers(NR_THREADS, 0.3, cube, size);
+
         threads.forEach(Thread::start);
         threads.forEach(t -> {
             try {
@@ -300,7 +297,7 @@ public class CubeTest {
         int size = 10;
         int NR_THREADS = 100;
         int maxDelay = 1000;
-        
+
         Cube cube = new Cube(size, (x, y) -> {
             try {
                 Thread.sleep(100);
@@ -315,20 +312,7 @@ public class CubeTest {
         }, () -> {
         });
 
-        List<Thread> threads = new ArrayList<>();
-        for (int i = 0; i < NR_THREADS; ++i) {
-            threads.add(new Thread(() -> {
-                try {
-                    if (ThreadLocalRandom.current().nextDouble() < 0.2) {
-                        cube.show();
-                    } else {
-                        cube.rotate(ThreadLocalRandom.current().nextInt(0, 2137) % 6,
-                                    ThreadLocalRandom.current().nextInt(0, 2137) % size);
-                    }
-                } catch (InterruptedException interrupted) {
-                }
-            }));
-        }
+        List<Thread> threads = aleatoryRotorsShowers(NR_THREADS, 0.3, cube, size);
         threads.forEach(Thread::start);
 
         Random r = new Random();
@@ -346,5 +330,77 @@ public class CubeTest {
         });
 
         assertCorrectCube(cube);
+    }
+
+    // There are no builtin pairs in this damn language.
+    private class Rotation {
+        private final int side;
+        private final int layer;
+
+        public Rotation(int side, int layer) {
+            this.side = side;
+            this.layer = layer;
+        }
+
+        public int getSide() {
+            return side;
+        }
+
+        public int getLayer() {
+            return layer;
+        }
+    }
+
+    @Test
+    public void concurrentEquivalentSequential() {
+        int size = 10;
+        int NR_THREADS = 1000;
+        int maxDelay = 100;
+        // We'll have a list that will serve as a log of all of the operations
+        // commited to the cube.
+        List<Rotation> rotations = Collections.synchronizedList(new ArrayList<>());
+        Cube cube = new Cube(size, (x, y) -> {
+        }, (x, y) -> {
+            rotations.add(new Rotation(x, y));
+        }, () -> {
+        }, () -> {
+        });
+
+        List<Thread> threads = aleatoryRotorsShowers(NR_THREADS, 0, cube, size);
+        threads.forEach(Thread::start);
+
+        threads.forEach(t -> {
+            try {
+                t.join(maxDelay);
+                if (t.isAlive()) {
+                    throw new AssertionError("Threads haven't finished in time!");
+                }
+            } catch (InterruptedException e) {
+            }
+        });
+
+        Cube freshCube = new Cube(size, (x, y) -> {
+        }, (x, y) -> {
+        }, () -> {
+        }, () -> {
+        });
+
+        try {
+            rotations.forEach(r -> {
+                try {
+                    freshCube.rotate(r.getSide(), r.getLayer());
+                } catch (InterruptedException e) {
+                    throw new AssertionError("Unexpected interruption!");
+                }
+            });
+
+            if (!freshCube.show().equals(cube.show())) {
+                throw new AssertionError(
+                        "The concurrently changed cube and sequentialy" +
+                        " changed one should be identical!");
+            }
+        } catch (InterruptedException e) {
+            throw new AssertionError("Unexpected interruption!");
+        }
     }
 }
