@@ -93,7 +93,7 @@ public class Cube {
         }
     }
 
-
+    // TODO layer not needed
     private void rotateLetOthersIn(int ax, int layer) {
         if (rotorsCount == 0 && waitingShows > 0) {
             lastAx = ax;

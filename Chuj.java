@@ -213,7 +213,7 @@ public class Chuj {
         for (int i = 0; i < NR_THREADS; ++i) {
             threads.add(new Thread(() -> {
                 try {
-                    if (ThreadLocalRandom.current().nextDouble() < 0.3) {
+                    if (ThreadLocalRandom.current().nextDouble() < 0.2) {
                         cube.show();
                     } else {
                         cube.rotate(ThreadLocalRandom.current().nextInt(0, 2137) % 6,
@@ -237,13 +237,14 @@ public class Chuj {
         });
 
         assertCorrectCube(cube);
+        System.out.println("OKAY");
     }
 
     public static void main(String[] args) {
 
         // order1260();
         // manyThreads();
-        // loggingTest();
+        loggingTest();
         interruptionsTest();
 
         // ExecutorService executor = Executors.newFixedThreadPool(10);
