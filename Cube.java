@@ -1,45 +1,58 @@
 
-// rewrite idea:
-// - use futures with executors. No single threads for all axis and layers
-//   but rather conceive another one each time (how to make sure one for the
-//   same layer?)
-// - make show() a monitor? show is always in the main thread right
-// - atomics everywhere so that after interrupt i can amanage my variables
-// - think about the cubing itself
-// - simplify the mutices!!!
+// Concurrent cube.
+// A class representing a Rubik's cube which one can rotate and look at but
+// with additional support for concurrent usage.
 
 import java.util.concurrent.Semaphore;
 import java.util.function.BiConsumer;
 
 public class Cube {
+    // All cubes are 3 dimensional but with user defined numbers of layers.
     private final int size;
+
+    // User given procedures that are called just before/after the respective
+    // cube operation.
     private final BiConsumer<Integer, Integer> beforeRotation;
     private final BiConsumer<Integer, Integer> afterRotation;
     private final Runnable beforeShowing;
     private final Runnable afterShowing;
 
+    // This 3D array represents how the actual cube looks.
     private final int[][][] faces;
 
-    // Global variables for all of the threads to synchronise their movements.
+    // Global variables for all of the threads to synchronise their movements:
 
-    // a straight forward mutex for protecting synch variables
+    // Straight forward mutex for protecting sync variables.
     private final Semaphore mutex = new Semaphore(1, true);
-    // semaphore for all of the axis groups to wait on
+    
+    // Semaphores for different axis groups to wait on.
     private final Semaphore[] axisMutices = { new Semaphore(0, true),
         new Semaphore(0, true), new Semaphore(0, true) };
+
+    // Mutual exclusion between layers.
     private final Semaphore[] layerMutices;
-    // counters of awaiting threads
+
+    // Counters of awaiting rotating threads.
     private final int[] waiting = { 0, 0, 0 };
-    // who has the right to rotate, which axis
+
+    // Who has the right to rotate, which axis. Set to -1 if there's no willing
+    // thread or the current axis number (0, 1, 2) or 4 as a dummy axis for
+    // 'show()'.
     private int currentRotor = -1;
-    // last axis that have been used in rotation
+
+    // Last axis that have been used in rotation.
     private int lastAx = 0;
-    // how many rotors rotating right now
+
+    // How many rotors rotating in the critical section right now.
     private int rotorsCount = 0;
-    // waiting show operations
+
+    // Waiting show operations.
     private int waitingShows = 0;
+
+    // Semaphore for 'show()' to wait on.
     private Semaphore showing = new Semaphore(0, true);
 
+    // Number of waiting threads from different axis than ax.
     private boolean otherAxWaiting(int ax) {
         if (ax == 0) {
             return waiting[1] > 0 && waiting[2] > 0;
@@ -52,6 +65,7 @@ public class Cube {
         }
     }
 
+    // Synchronisation for the rotate operations.
     private void rotateEntryProtocole(int ax, int layer) throws InterruptedException {
         mutex.acquire();
 
@@ -70,13 +84,14 @@ public class Cube {
                 mutex.release();
                 throw e;
             }
-            // we inherit the mutex here
+            // We assume we inherit the mutex here having been woken up.
             --waiting[ax];
         }
         ++rotorsCount;
 
         if (waiting[ax] != 0) {
-            // waking up fellow thread from the same axis
+            // Waking up fellow thread from the same axis to enter the critical
+            // section with us.
             axisMutices[ax].release();
         } else {
             mutex.release();
@@ -87,18 +102,21 @@ public class Cube {
         } catch (InterruptedException e) {
             mutex.acquireUninterruptibly();
             --rotorsCount;
-            // we might have been the last of our group
-            rotateLetOthersIn(ax, layer);
+            // We might have been the last of our group.
+            rotateLetOthersIn(ax);
             throw e;
         }
     }
 
-    // TODO layer not needed
-    private void rotateLetOthersIn(int ax, int layer) {
+    // This procedure makes the current wake up those that are waiting if the
+    // time is appropriate.
+    private void rotateLetOthersIn(int ax) {
+        // After a rotation we prioritise the entry of a waiting 'show' thread
+        // (and vice versa) thus ending up safe from starvation problems.
         if (rotorsCount == 0 && waitingShows > 0) {
             lastAx = ax;
-            // note: there is no such axis, it is an indicator that we let
-            // showing happed instead of another axis group
+            // Note: there is no such axis, it is an indicator that we let
+            // showing happen instead of another axis group.
             currentRotor = 4;
             showing.release();
         } else if (rotorsCount == 0) {
@@ -114,18 +132,23 @@ public class Cube {
             currentRotor = -1;
             mutex.release();
         } else {
-            // we're not the last thread from our group so we just fuck off
             mutex.release();
         }
     }
-    
-    private void rotateExitProtocole(int ax, int layer) throws InterruptedException {
+
+    // The exit protocole after a successful rotation.
+    private void rotateExitProtocole(int ax, int layer) {
         layerMutices[layer].release();
         mutex.acquireUninterruptibly();
         --rotorsCount;
-        rotateLetOthersIn(ax, layer);
+        rotateLetOthersIn(ax);
     }
-    
+
+    // The rotation function. It knows the axis number and the layer (with
+    // respect to the axis) that it wants to rotate (this info is crucial in
+    // synchronising the threads). It also stays vigilant of the original
+    // parameters that were passed to rotate(int, int) (see below) as they are
+    // needed as arguments for {before,after}Rotation procedures.
     private void rotate(int ax, int layer, int origSide, int origLayer)
         throws InterruptedException {
         rotateEntryProtocole(ax, layer);
@@ -133,18 +156,22 @@ public class Cube {
         rotateExitProtocole(ax, layer);
     }
 
+    // User visible rotate function. Will perform a clockwise rotation of
+    // a selected layer facing a given side.
     public void rotate(int side, int layer) throws InterruptedException {
         // this way we get axis as 0 or 1 or 2        
         int ax = side < 3 ? side : oppositeFace(side);
         int transpLayer = layer;
         if (side != ax) {
-            // reflection
+            // Reëvaluate the layer with respect to the axis.
             transpLayer = size - layer - 1;
         }
 
+        // Call the function defined earlier.
         rotate(ax, transpLayer, side, layer);
     }
 
+    // Synchronisation for the 'show()' operations. Similar to rotations' sync.
     private void showEntryProtocole() throws InterruptedException {
         mutex.acquire();
         if (otherAxWaiting(4) || currentRotor != -1) {
@@ -159,16 +186,17 @@ public class Cube {
                 throw e;
             }
             --waitingShows;
-            // ?
         } else {
             currentRotor = 4;
         }
         mutex.release();
     }
 
+    // Ditto.
     private void showExitProtocole() throws InterruptedException {
         mutex.acquireUninterruptibly();
-        
+
+        // Prioritise axes over showings here.
         for (int j = 1; j <= 3; ++j) {
             int i = (lastAx + j) % 3;
             if (waiting[i] > 0) {
@@ -186,7 +214,8 @@ public class Cube {
         }
 
     }
-    
+
+    // Return a string with a representation of the cube.
     public String show() throws InterruptedException {        
         showEntryProtocole();
         String cubeString = criticalShow();
@@ -203,20 +232,21 @@ public class Cube {
         case 3: return 1;
         case 4: return 2;
         case 5: return 0;
-        default: throw new AssertionError("sraka");
+        default: throw new AssertionError("Invalid face!");
         }
     }
-    
+
+    // The true place where rotations take place, the critical section in
+    // concurrent programming terminology -- here the threads actually can
+    // access the cube.
     private void criticalRotate(int ax, int layer, int origSide, int origLayer) {
-        // We're here, finally doin some rotating.
+        // We're here, finally doin some rotatin'.
         beforeRotation.accept(origSide, origLayer);
 
         boolean clockwise = ax == origSide;
         // If this layer is a face layer then we also need to rotate the face.
+        // Mind the reverted clockwiseness.
         if (layer == 0) {
-            // top face --> 0 || 1 || 2 == ax
-            // bottom face --> origSide == 5 || 3 || 4
-            // clockwise negated due to sraka
             rotateFace(ax, clockwise);
         } else if (layer == size - 1) {
             rotateFace(oppositeFace(ax), !clockwise);
@@ -270,19 +300,8 @@ public class Cube {
         }
     }
 
-    private void swapFaces(CubeSquare a, CubeSquare b, CubeSquare c, CubeSquare d, boolean clockwise) {
-        for (int i = clockwise ? 1 : 3; i > 0; i--) {
-            int tmp = faces[a.getFace()][a.getI()][a.getJ()];
-
-        faces[a.getFace()][a.getI()][a.getJ()] = faces[b.getFace()][b.getI()][b.getJ()];
-        faces[b.getFace()][b.getI()][b.getJ()] = faces[c.getFace()][c.getI()][c.getJ()];
-        faces[c.getFace()][c.getI()][c.getJ()] = faces[d.getFace()][d.getI()][d.getJ()];
-        faces[d.getFace()][d.getI()][d.getJ()] = tmp;
-    }
-}
-
-    
-    private void swap4(CubeSquare s0, CubeSquare s1,CubeSquare s2,CubeSquare s3,
+    // A quadruple swap of cubes' squares.
+    private void swap4(CubeSquare s0, CubeSquare s1, CubeSquare s2, CubeSquare s3,
                        boolean clockwise) {
         int[] tmp = {
             faces[s0.getFace()][s0.getI()][s0.getJ()],
@@ -303,7 +322,9 @@ public class Cube {
             faces[s3.getFace()][s3.getI()][s3.getJ()] = tmp[2];
         }                
     }
-    
+
+    // All functions from the rotateN (N in {0,1,2}) family rotate a given layer
+    // around the Nth axis. Clockwise or anticlockwise.
     private void rotate0(int layer, boolean clockwise) {
         
         for (int i = 0; i < size; ++i) {
@@ -317,10 +338,8 @@ public class Cube {
     private void rotate1(int layer, boolean clockwise) {
         for (int i = 0; i < size; ++i) {
             swap4(new CubeSquare(4, size - i - 1, size - layer - 1),
-                  new CubeSquare(5, i, layer),
-                  new CubeSquare(2, i, layer),
-                  new CubeSquare(0, i, layer), 
-                  clockwise);
+                  new CubeSquare(5, i, layer), new CubeSquare(2, i, layer),
+                  new CubeSquare(0, i, layer),  clockwise);
         }
     }
 
@@ -333,7 +352,8 @@ public class Cube {
                   clockwise);
         }
     }
-        
+
+    // The place where actual showing of the cube takes place.
     public String criticalShow() throws InterruptedException {
         beforeShowing.run();
         StringBuilder sb = new StringBuilder();
@@ -348,6 +368,7 @@ public class Cube {
         return sb.toString();
     }
 
+    // Cube's constructor.
     public Cube(int size, BiConsumer<Integer, Integer> beforeRotation,
                 BiConsumer<Integer, Integer> afterRotation,
                 Runnable beforeShowing, Runnable afterShowing) {
