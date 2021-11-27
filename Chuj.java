@@ -12,17 +12,9 @@ public class Chuj {
             int value = 0;
         };
         Cube cube = new Cube(10, (x, y) -> {
-            ++counter.value;
-            System.out.println("\tbefore rotating");
         }, (x, y) -> {
-            ++counter.value;
-            System.out.println("\tafter rotating");
         }, () -> {
-            ++counter.value;
-            System.out.println("\tbefore showing");
         }, () -> {
-            ++counter.value;
-            System.out.println("\tafter showing");
         });
 
         // 1260
@@ -43,6 +35,10 @@ public class Chuj {
         } catch (Exception e) {
 
         }
+        // TODO
+        assertSolvedCube(cube);
+        assertCorrectCube(cube);
+        System.out.println("OKAY");
     }
 
     private static int ax(int f) {
@@ -241,14 +237,9 @@ public class Chuj {
     }
 
     public static void main(String[] args) {
-
-        // order1260();
+        order1260();
         // manyThreads();
         loggingTest();
         interruptionsTest();
-
-        // ExecutorService executor = Executors.newFixedThreadPool(10);
-        // Future<Object> guwno = executor.submit(() -> cube.rotate(4, 0));
-        // guwno.get();
     }
 }
