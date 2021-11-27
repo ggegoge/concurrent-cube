@@ -1,3 +1,4 @@
+package concurrentcube;
 
 // Concurrent cube.
 // A class representing a Rubik's cube which one can rotate and look at but

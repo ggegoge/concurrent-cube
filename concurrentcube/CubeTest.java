@@ -1,3 +1,5 @@
+package concurrentcube;
+
 import org.junit.Test;
 
 public class CubeTest {

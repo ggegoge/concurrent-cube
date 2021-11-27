@@ -1,3 +1,5 @@
+package concurrentcube;
+
 public class CubeSquare {
     private final int face;
     private final int i;
