@@ -7,10 +7,49 @@ import java.util.concurrent.*;
 
 public class Chuj {
 
+    public static void assertCorrectCube(Cube cube) {
+
+        try {
+            String cubeString = cube.show();
+            int expectedAmount = cubeString.length() / 6;
+            int occurences[] = { 0, 0, 0, 0, 0, 0 };
+            for (int i = 0; i < cubeString.length(); ++i) {
+                ++occurences[Character.getNumericValue(cubeString.charAt(i))];
+            }
+
+            for (int i = 0; i < 6; ++i) {
+                if (occurences[i] != expectedAmount) {
+                    throw new AssertionError
+                        ("there are not enough occurences of colour '" + i + "'; "
+                         + occurences[i] + ", expected " + expectedAmount);
+                }
+            }
+
+        } catch (InterruptedException e) {
+            throw new AssertionError("Unexpected interruption!");
+        }
+    }
+
+    private static int sqrt(int square) {
+        return (int) Math.sqrt(square);
+    }
+    
+    public static void assertSolvedCube(Cube cube) {
+        try {
+            String cubeString = cube.show();            
+            Cube solvedCube = new Cube(sqrt(cubeString.length() / 6),
+                                       (x,y) -> {}, (x,y) -> {},
+                                       () -> {}, () -> {});
+            String solvedString = solvedCube.show();
+            if (!cubeString.equals(solvedString)) {
+                throw new AssertionError("Expected a solved cube but did not get one!");
+            }
+        } catch (InterruptedException e) {
+            throw new AssertionError("Unexpected interruption!");
+        }
+    }
+    
     public static void order1260() {
-        var counter = new Object() {
-            int value = 0;
-        };
         Cube cube = new Cube(10, (x, y) -> {
         }, (x, y) -> {
         }, () -> {
@@ -31,13 +70,12 @@ public class Chuj {
                 cube.rotate(5, 0);
                 cube.rotate(5, 0);
             }
-            System.out.println(cube.show());
-        } catch (Exception e) {
-
+        } catch (InterruptedException e) {
+            throw new AssertionError("Unexpected interruption!");
         }
-        // TODO
-        assertSolvedCube(cube);
+
         assertCorrectCube(cube);
+        assertSolvedCube(cube);        
         System.out.println("OKAY");
     }
 
@@ -125,28 +163,6 @@ public class Chuj {
         assertCorrectCube(cube);
     }
 
-    public static void assertCorrectCube(Cube cube) {
-
-        try {
-            String cubeString = cube.show();
-            int expectedAmount = cubeString.length() / 6;
-            int occurences[] = { 0, 0, 0, 0, 0, 0 };
-            for (int i = 0; i < cubeString.length(); ++i) {
-                ++occurences[Character.getNumericValue(cubeString.charAt(i))];
-            }
-
-            for (int i = 0; i < 6; ++i) {
-                if (occurences[i] != expectedAmount) {
-                    throw new AssertionError("there are not enough occurences of colour '" + i + "'; " + occurences[i]
-                            + ", expected " + expectedAmount);
-                }
-            }
-
-        } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-    }
 
     public static void manyThreads() {
         int size = 10;
@@ -159,7 +175,6 @@ public class Chuj {
         ArrayList<Thread> threads = new ArrayList<>();
         for (int i = 0; i < 1000; ++i) {
             final int a = i;
-            System.out.println("a = " + a);
             threads.add(new Thread(() -> {
                 try {
                     cube.rotate(0, a % size);
