@@ -15,20 +15,9 @@ import java.util.concurrent.*;
 // cube. It tests its various qualites such as rotation correctness, their
 // atomicity or lack thereof, synchronisation, concurrency and liveness.
 public class CubeTest {    
-    @Test
-    public void git() {
-        
-    }
-
-    @Test
-    public void chuj() {
-        throw new AssertionError("chuj");
-    }
-
-
     // A utility function for assering whether a cube is physically correct
     // ie. the number of squares with each of the six `colours' is equal.
-    public static void assertCorrectCube(Cube cube) {
+    private static void assertCorrectCube(Cube cube) {
 
         try {
             String cubeString = cube.show();
@@ -57,7 +46,7 @@ public class CubeTest {
     }
 
     // Check if the cube is solved.
-    public static void assertSolvedCube(Cube cube) {
+    private static void assertSolvedCube(Cube cube) {
         try {
             String cubeString = cube.show();
             Cube solvedCube = new Cube(sqrt(cubeString.length() / 6), (x, y) -> {
@@ -134,6 +123,7 @@ public class CubeTest {
     public void loggingTest() {
         int size = 10;
         int NR_THREADS = 1000;
+        int maxDelay = 100;
         // We'll have a list that will serve as a log of all of the operations
         // commited to the cube.
         List<String> log = Collections.synchronizedList(new ArrayList<>());
@@ -171,7 +161,7 @@ public class CubeTest {
 
         threads.forEach(t -> {
             try {
-                t.join(1000);
+                t.join(maxDelay);
                 if (t.isAlive()) {
                     throw new AssertionError("Threads haven't finished in time!");
                 }
@@ -219,6 +209,7 @@ public class CubeTest {
     public void aleatoryThreads() {
         int size = 100;
         int NR_THREADS = 10000;
+        int maxDelay = 1000;
         Cube cube = new Cube(size, (x, y) -> {
         }, (x, y) -> {
         }, () -> {
@@ -241,7 +232,7 @@ public class CubeTest {
         threads.forEach(Thread::start);
         threads.forEach(t -> {
             try {
-                t.join(1000);
+                t.join(maxDelay);
                 if (t.isAlive()) {
                     throw new AssertionError("Threads haven't finished in time!");
                 }
@@ -257,8 +248,7 @@ public class CubeTest {
     @Test
     public void concurrencyTest() {
         int size = 100;
-
-        
+        int maxDelay = 100;
         CyclicBarrier beforeBarrier = new CyclicBarrier(size);
         CyclicBarrier afterBarrier = new CyclicBarrier(size);
         // Both before and after rotation shall wait for their fellow threads so
@@ -290,7 +280,7 @@ public class CubeTest {
         threads.forEach(Thread::start);
         threads.forEach(t -> {
             try {
-                t.join(1000);
+                t.join(maxDelay);
                 if (t.isAlive()) {
                     throw new AssertionError("Threads haven't finished in time!");
                 }
@@ -309,7 +299,8 @@ public class CubeTest {
     public void interruptionsTest() {
         int size = 10;
         int NR_THREADS = 100;
-
+        int maxDelay = 1000;
+        
         Cube cube = new Cube(size, (x, y) -> {
             try {
                 Thread.sleep(100);
@@ -346,7 +337,7 @@ public class CubeTest {
         }
         threads.forEach(t -> {
             try {
-                t.join(1000);
+                t.join(maxDelay);
                 if (t.isAlive()) {
                     throw new AssertionError("Threads haven't finished in time!");
                 }
@@ -356,5 +347,4 @@ public class CubeTest {
 
         assertCorrectCube(cube);
     }
-
 }
