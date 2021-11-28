@@ -118,16 +118,18 @@ public class CubeTest {
     // operations on a cube. Both rotations and shows are inlcuded in the list
     // with a given probavility;
     private List<Thread> aleatoryRotorsShowers(int nrThreads, double showProbability,
-                                        Cube cube, int size) {
+                                               Cube cube, int size, int nrTasks) {
         List<Thread> threads = new ArrayList<>();
         for (int i = 0; i < nrThreads; ++i) {
             threads.add(new Thread(() -> {
                 try {
-                    if (ThreadLocalRandom.current().nextDouble() < showProbability) {
-                        cube.show();
-                    } else {
-                        cube.rotate(ThreadLocalRandom.current().nextInt(0, 2137) % 6,
-                                ThreadLocalRandom.current().nextInt(0, 2137) % size);
+                    for (int j = 0; j < nrTasks; ++j) {
+                        if (ThreadLocalRandom.current().nextDouble() < showProbability) {
+                            cube.show();
+                        } else {
+                            cube.rotate(ThreadLocalRandom.current().nextInt(0, 2137) % 6,
+                                        ThreadLocalRandom.current().nextInt(0, 2137) % size);
+                        }
                     }
                 } catch (InterruptedException e) {
                 }
@@ -164,7 +166,7 @@ public class CubeTest {
             log.add("oS");
         });
 
-        List<Thread> threads = aleatoryRotorsShowers(NR_THREADS, 0.3, cube, size);
+        List<Thread> threads = aleatoryRotorsShowers(NR_THREADS, 0.3, cube, size, 5);
         threads.forEach(Thread::start);
 
         threads.forEach(t -> {
@@ -202,9 +204,11 @@ public class CubeTest {
 
             if (balance < 0)
                 throw new AssertionError("negative i-o balance!");
-
         }
 
+        // it looks cool so you might want to see that
+        // System.out.println(log);
+        
         if (balance != 0)
             throw new AssertionError("non zero final i-o balance!");
 
@@ -212,19 +216,21 @@ public class CubeTest {
     }
 
     // Check if many aleatory threads of rotations and shows disrupt the cube's
-    // structure.
+    // structure. Sends 10000 threads each willing to do 10 cube operations on
+    // a 100*100*100 Rubik's cube. It takes quite some time.
     @Test
     public void aleatoryThreads() {
         int size = 100;
         int NR_THREADS = 10000;
-        int maxDelay = 1000;
+        // This is a long test so the delay is selected appropriately.
+        int maxDelay = 5000;
         Cube cube = new Cube(size, (x, y) -> {
         }, (x, y) -> {
         }, () -> {
         }, () -> {
         });
 
-        List<Thread> threads = aleatoryRotorsShowers(NR_THREADS, 0.3, cube, size);
+        List<Thread> threads = aleatoryRotorsShowers(NR_THREADS, 0.3, cube, size, 10);
 
         threads.forEach(Thread::start);
         threads.forEach(t -> {
@@ -295,8 +301,8 @@ public class CubeTest {
     @Test
     public void interruptionsTest() {
         int size = 10;
-        int NR_THREADS = 100;
-        int maxDelay = 1000;
+        int NR_THREADS = 50;
+        int maxDelay = 1500;
 
         Cube cube = new Cube(size, (x, y) -> {
             try {
@@ -312,7 +318,7 @@ public class CubeTest {
         }, () -> {
         });
 
-        List<Thread> threads = aleatoryRotorsShowers(NR_THREADS, 0.3, cube, size);
+        List<Thread> threads = aleatoryRotorsShowers(NR_THREADS, 0.1, cube, size, 1);
         threads.forEach(Thread::start);
 
         Random r = new Random();
@@ -366,7 +372,7 @@ public class CubeTest {
         }, () -> {
         });
 
-        List<Thread> threads = aleatoryRotorsShowers(NR_THREADS, 0, cube, size);
+        List<Thread> threads = aleatoryRotorsShowers(NR_THREADS, 0, cube, size, 5);
         threads.forEach(Thread::start);
 
         threads.forEach(t -> {

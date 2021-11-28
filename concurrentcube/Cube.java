@@ -47,6 +47,9 @@ public class Cube {
     // How many rotors rotating in the critical section right now.
     private int rotorsCount = 0;
 
+    // Same but for showing.
+    private int showersCount = 0;
+
     // Waiting show operations.
     private int waitingShows = 0;
 
@@ -171,7 +174,7 @@ public class Cube {
         // Call the function defined earlier.
         rotate(ax, transpLayer, side, layer);
     }
-
+    
     // Synchronisation for the 'show()' operations. Similar to rotations' sync.
     private void showEntryProtocole() throws InterruptedException {
         mutex.acquire();
@@ -190,30 +193,38 @@ public class Cube {
         } else {
             currentRotor = 4;
         }
-        mutex.release();
+        ++showersCount;
+        if (waitingShows != 0) {
+            showing.release();
+        } else {
+            mutex.release();
+        }
     }
 
     // Ditto.
     private void showExitProtocole() throws InterruptedException {
         mutex.acquireUninterruptibly();
-
-        // Prioritise axes over showings here.
-        for (int j = 1; j <= 3; ++j) {
-            int i = (lastAx + j) % 3;
-            if (waiting[i] > 0) {
-                currentRotor = i;
-                axisMutices[i].release();
-                // I don't release the mutex as it will be inherited
-                return;
+        --showersCount;
+        if (showersCount == 0) {
+            // Prioritise axes over showings here.
+            for (int j = 1; j <= 3; ++j) {
+                int i = (lastAx + j) % 3;
+                if (waiting[i] > 0) {
+                    currentRotor = i;
+                    axisMutices[i].release();
+                    // I don't release the mutex as it will be inherited
+                    return;
+                }
             }
-        }
-        if (waitingShows > 0) {
-            showing.release();
+            if (waitingShows > 0) {
+                showing.release();
+            } else {
+                currentRotor = -1;
+                mutex.release();
+            }
         } else {
-            currentRotor = -1;
             mutex.release();
         }
-
     }
 
     // Return a string with a representation of the cube.
