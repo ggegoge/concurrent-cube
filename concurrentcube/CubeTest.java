@@ -301,24 +301,24 @@ public class CubeTest {
     @Test
     public void interruptionsTest() {
         int size = 10;
-        int NR_THREADS = 50;
+        int NR_THREADS = 20;
         int maxDelay = 1500;
 
         Cube cube = new Cube(size, (x, y) -> {
             try {
-                Thread.sleep(100);
+                Thread.sleep(50);
             } catch (InterruptedException ingored) {
             }
         }, (x, y) -> {
         }, () -> {
             try {
-                Thread.sleep(100);
+                Thread.sleep(50);
             } catch (InterruptedException ingored) {
             }
         }, () -> {
         });
 
-        List<Thread> threads = aleatoryRotorsShowers(NR_THREADS, 0.1, cube, size, 1);
+        List<Thread> threads = aleatoryRotorsShowers(NR_THREADS, 0, cube, size, 1);
         threads.forEach(Thread::start);
 
         Random r = new Random();
